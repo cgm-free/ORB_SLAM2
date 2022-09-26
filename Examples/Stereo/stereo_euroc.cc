@@ -51,10 +51,13 @@ int main(int argc, char **argv)
         cerr << endl << "Usage: ./stereo_euroc path_to_vocabulary path_to_settings path_to_left_folder path_to_right_folder path_to_times_file" << endl;
         return 1;
     }
+//./Examples/Stereo/stereo_euroc Vocabulary/ORBvoc.txt Examples/Stereo/EuRoC.yaml /home/cgm/DataSet/EuRoC_Dataset/MH_01_easy/mav0/cam0/data /home/cgm/DataSet/EuRoC_Dataset/MH_01_easy/mav0/cam1/data Examples/Stereo/EuRoC_TimeStamps/MH01.txt
 
-    // step 1 获取图像的访问路径
-    // Retrieve paths to images
-    // 保存左右目图像每张图像路径和时间戳的向量
+
+
+//     step 1 获取图像的访问路径
+//     Retrieve paths to images
+//     保存左右目图像每张图像路径和时间戳的向量
     vector<string> vstrImageLeft;
     vector<string> vstrImageRight;
     vector<double> vTimeStamp;
