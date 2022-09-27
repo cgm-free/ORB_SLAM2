@@ -214,7 +214,7 @@ int main(int argc, char **argv)
 
         double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
 
-        vTimesTrack[ni]=ttrack;
+        vTimesTrack[ni]=ttrack;//第i张图片的追踪时间
 
         // Wait to load the next frame
         // step 4.7 等待一段时间以符合下一帧图像的时间戳

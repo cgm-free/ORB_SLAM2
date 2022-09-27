@@ -159,6 +159,7 @@ Tracking::Tracking(
         cout << "- color order: BGR (ignored if grayscale)" << endl;
 
     // Load ORB parameters
+    //TODO 提取过程太耗时；改为自适应阈值；
 
     // Step 2 加载ORB特征点有关的参数,并新建特征点提取器
 
@@ -169,17 +170,13 @@ Tracking::Tracking(
     // 尺度金字塔的层数 8
     int nLevels = fSettings["ORBextractor.nLevels"];
     // 提取fast特征点的默认阈值 20
-    int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
+    int fIniThFAST = fSettings["ORBextractor.iniThFAST"];//TODO 提取过程太耗时；改为自适应阈值；
     // 如果默认阈值提取不出足够fast特征点，则使用最小阈值 8
-    int fMinThFAST = fSettings["ORBextractor.minThFAST"];
+    int fMinThFAST = fSettings["ORBextractor.minThFAST"];//TODO 提取过程太耗时；改为自适应阈值；
+
 
     // tracking过程都会用到mpORBextractorLeft作为特征点提取器
-    mpORBextractorLeft = new ORBextractor(
-        nFeatures,      //参数的含义还是看上面的注释吧
-        fScaleFactor,
-        nLevels,
-        fIniThFAST,
-        fMinThFAST);
+    mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
     // 如果是双目，tracking过程中还会用用到mpORBextractorRight作为右目特征点提取器
     if(sensor==System::STEREO)
@@ -201,7 +198,7 @@ Tracking::Tracking(
         // 判断一个3D点远/近的阈值 mbf * 35 / fx || mbf * 40 / fx
         //ThDepth其实就是表示基线长度的多少倍
         mThDepth = mbf*(float)fSettings["ThDepth"]/fx;
-        cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
+        cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;// 3.85272
     }
 
     if(sensor==System::RGBD)

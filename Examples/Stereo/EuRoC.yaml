@@ -22,8 +22,21 @@ Camera.height: 480
 # Camera frames per second 
 Camera.fps: 20.0
 
-# stereo baseline times fx
+# stereo baseline times fx;
+#Camera.bf=b*fx=b*435.2046959714599=47.90639384423901 --->>> b=47.9/435.3
+#Camera.bf中的b指基线baseline单位是米，f是x轴焦距fx,x轴和y轴焦距差距不大，‘bf=b*fx ,fx=αf
+#和ThDepth一起决定深度点的范围`bf * ThDepth / fx`=`b*fx * ThDepth/fx =b*ThDepth'。
+# EuRoC. yaml中的bf为47.9，ThDepth为35，fx为435.2，有效深度为`bf * ThDepth / fx = 47.9*35/435.3=3.85米
+# KITTI. yaml中的bf为387.57，ThDepth为40，fx为721.54，有效深度为`387.57*48/721.54=21.5米`。
 Camera.bf: 47.90639384423901
+#  參考 Tracking.cc代碼
+#   if(sensor==System::STEREO || sensor==System::RGBD)
+#   {
+#   // 判断一个3D点远/近的阈值 mbf * 35 / fx || mbf * 40 / fx
+#   //ThDepth其实就是表示基线长度的多少倍
+#   mThDepth = mbf*(float)fSettings["ThDepth"]/fx;
+#   cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;// 3.85272
+#}
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
 Camera.RGB: 1
@@ -117,7 +130,7 @@ ORBextractor.nLevels: 8
 # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
 # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
 # You can lower these values if your images have low contrast
-# 许多论文改进：设置自适应阈值
+#TODO 许多论文改进：设置自适应阈值
 ORBextractor.iniThFAST: 20
 ORBextractor.minThFAST: 7
 

@@ -150,7 +150,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 	//对右目图像提取ORB特征，参数含义同上
     thread threadRight(&Frame::ExtractORB,this,1,imRight);
 	//等待两张图像特征点提取过程完成
-    threadLeft.join();
+    threadLeft.join();//join()函数的作用是让主线程的等待该子线程完成，然后主线程再继续执行。
     threadRight.join();
 
 	//mvKeys中保存的是左图像中的特征点，这里是获取左侧图像中特征点的个数

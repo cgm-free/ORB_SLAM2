@@ -34,7 +34,7 @@ namespace ORB_SLAM2
 
 //系统的构造函数，将会启动其他的线程
 /** 如mono_tum.cc中调用
- * ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::MONOCULAR,true); 
+ * ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::MONOCULAR,true);
  * ORB_SLAM2::System SLAM(字典文件ORBvoc.tx,配置文件TUM1.yaml,单目MONOCULAR,可以可视化);
 **/
 System::System(const string &strVocFile,					//词典文件路径 //常量引用主要用来修饰形参，防止误操作()
@@ -42,7 +42,7 @@ System::System(const string &strVocFile,					//词典文件路径 //常量引用
 			   const eSensor sensor,						//传感器类型
                const bool bUseViewer):						//是否使用可视化界面,默认为ture
 					 mSensor(sensor), 							//初始化传感器类型
-					 mpViewer(static_cast<Viewer*>(NULL)),		//空。。。对象指针？  TODO 
+					 mpViewer(static_cast<Viewer*>(NULL)),		//空。。。对象指针？  TODO
 					 mbReset(false),							//无复位标志
 					 mbActivateLocalizationMode(false),			//没有这个模式转换标志
         			 mbDeactivateLocalizationMode(false)		//没有这个模式转换标志
@@ -89,11 +89,13 @@ System::System(const string &strVocFile,					//词典文件路径 //常量引用
     mpVocabulary = new ORBVocabulary();//利用new创建的数据，会返回该数据对应的类型的指针; Initiates an empty vocabulary
     cout << "*mpVocabulary. " << *mpVocabulary << endl;
     //*mpVocabulary. Vocabulary: k = 10, L = 5, Weighting = tf-idf, Scoring = L1-norm, Number of words = 0
-    
+    //TemplatedVocabulary.h的最后一个函数
+
     //获取字典加载状态，加载ture或false; Loads the vocabulary from a text file 从文本文件加载词典
     bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
     cout << "*mpVocabulary. " << *mpVocabulary << endl;
     //*mpVocabulary. Vocabulary: k = 10, L = 6, Weighting = tf-idf, Scoring = L1-norm, Number of words = 971815
+    //TemplatedVocabulary.h的最后一个函数
 
     //如果加载失败，就输出调试信息
     if(!bVocLoad)
@@ -131,7 +133,6 @@ System::System(const string &strVocFile,					//词典文件路径 //常量引用
                              mpKeyFrameDatabase, 		//关键帧地图
                              strSettingsFile, 			//设置文件路径
                              mSensor);					//传感器类型iomanip
-
     //初始化局部建图线程并运行
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(mpMap, 				//指定使iomanip

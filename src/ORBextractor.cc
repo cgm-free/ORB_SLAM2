@@ -484,12 +484,21 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
     mvScaleFactor[0]=1.0f;
     mvLevelSigma2[0]=1.0f;
 	//然后逐层计算图像金字塔中图像相当于初始图像的缩放系数 
-    for(int i=1; i<nlevels; i++)  
+    for(int i=1; i<nlevels; i++)
     {
 		//其实就是这样累乘计算得出来的
         mvScaleFactor[i]=mvScaleFactor[i-1]*scaleFactor;
+//        cout << "mvScaleFactor[" << i << "]="<< mvScaleFactor[i]<<endl;
 		//原来这里的sigma^2就是每层图像相对于初始图像缩放因子的平方
         mvLevelSigma2[i]=mvScaleFactor[i]*mvScaleFactor[i];
+//        cout << "mvLevelSigma2[" << i << "]="<< mvLevelSigma2[i]<<endl;
+//        mvScaleFactor[1]=1.2         mvLevelSigma2[1]=1.44
+//        mvScaleFactor[2]=1.44        mvLevelSigma2[2]=2.0736
+//        mvScaleFactor[3]=1.728       mvLevelSigma2[3]=2.98598
+//        mvScaleFactor[4]=2.0736      mvLevelSigma2[4]=4.29982
+//        mvScaleFactor[5]=2.48832     mvLevelSigma2[5]=6.19174
+//        mvScaleFactor[6]=2.98598     mvLevelSigma2[6]=8.9161
+//        mvScaleFactor[7]=3.58318     mvLevelSigma2[7]=12.8392
     }
 
     //接下来的两个向量保存上面的参数的倒数
@@ -506,72 +515,172 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
 
 	//每层需要提取出来的特征点个数，这个向量也要根据图像金字塔设定的层数进行调整
     mnFeaturesPerLevel.resize(nlevels);
-	
+
 	//图片降采样缩放系数的倒数
     float factor = 1.0f / scaleFactor;
-	//第0层图像应该分配的特征点数量
-    float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
+//    https://zhuanlan.zhihu.com/p/61738607
+	//第0层图像(原图)应该分配發·的特征点数量            //TODO 这里是不是还可以去设计一个每层需要提取的特征点数 ？
+    float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels)); //pow() 函数用来求 x 的 y 次幂(次方)，x、y及函数值都是double型
+//    //第1层应该提取的特征点数量
+//    float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels))*factor; //pow() 函数用来求 x 的 y 次幂(次方)，x、y及函数值都是double型
+//    //第2层应该提取的特征点数量
+//    float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels))*factor*factor; //pow() 函数用来求 x 的 y 次幂(次方)，x、y及函数值都是double型
+//        ..........
+//    第[level]层应该提取的特征点数量
+//    float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels))*factor^[level]; //pow() 函数用来求 x 的 y 次幂(次方)，x、y及函数值都是double型
 
 	//用于在特征点个数分配的，特征点的累计计数清空
     int sumFeatures = 0;
-	//开始逐层计算要分配的特征点个数，顶层图像除外（看循环后面）
+    //开始逐层计算要分配的特征点个数，顶层图像除外（看循环后面）
     for( int level = 0; level < nlevels-1; level++ )
     {
-		//分配 cvRound : 返回个参数最接近的整数值
+        //分配 cvRound : 返回个参数最接近的整数值
         mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
-		//累计
+//        cout << "第"<< level << "层提取的特征点数：" <<nDesiredFeaturesPerScale <<endl;
+        //累计
         sumFeatures += mnFeaturesPerLevel[level];
-		//乘系数
+//        cout << "累计提取的特征点数：" <<sumFeatures <<endl;
+        //乘系数
         nDesiredFeaturesPerScale *= factor;
+//        第0层提取的特征点数：260.609
+//        累计提取的特征点数：261
+//        第1层提取的特征点数：217.175
+//        累计提取的特征点数：478
+//        第2层提取的特征点数：180.979
+//        累计提取的特征点数：659
+//        第3层提取的特征点数：150.816
+//        累计提取的特征点数：810
+//        第4层提取的特征点数：125.68
+//        累计提取的特征点数：936
+//        第5层提取的特征点数：104.733
+//        累计提取的特征点数：1041
+//        第6层提取的特征点数：87.2776
+//        累计提取的特征点数：1128
+//        剩余一些特征点个数没有被分配到最高的图层中:72
     }
     //由于前面的特征点个数取整操作，可能会导致剩余一些特征点个数没有被分配，所以这里就将这个余出来的特征点分配到最高的图层中
     mnFeaturesPerLevel[nlevels-1] = std::max(nfeatures - sumFeatures, 0);
+//    cout << " 剩余一些特征点个数没有被分配到最高的图层中:" << mnFeaturesPerLevel[nlevels-1] <<endl;
+//    剩余一些特征点个数没有被分配到最高的图层中:72
 
-	//成员变量pattern的长度，也就是点的个数，这里的512表示512个点（上面的数组中是存储的坐标所以是256*2*2）
+
+    //成员变量pattern的长度，也就是点的个数，这里的512表示512个点（上面的数组中是存储的坐标所以是256*2*2）
+    // https://zhuanlan.zhihu.com/p/61738607 4. 计算Rotation-Aware BRIEF rBRIEF
+    // "static int bit_pattern_31_[256 * 4] = {" 是一个1024维的数组,数组数据类型是int,是特征点keypoint为中心周围256对点的坐标
     const int npoints = 512;
 	//获取用于计算BRIEF描述子的随机采样点点集头指针
 	//注意到pattern0数据类型为Points*,bit_pattern_31_是int[]型，所以这里需要进行强制类型转换
-    const Point* pattern0 = (const Point*)bit_pattern_31_;	
+    const Point* pattern0 = (const Point*)bit_pattern_31_;	//bit_pattern_31_是数组的首地址
+//    cout <<pattern0[0]<<endl;
+//    cout <<pattern0[1]<<endl;
+//    cout <<pattern0[2]<<endl;
+//    cout <<pattern0[3]<<endl;
+//    [8, -3]
+//    [9, 5]
+//    [4, 2]
+//    [7, -12]
 	//使用std::back_inserter的目的是可以快覆盖掉这个容器pattern之前的数据
 	//其实这里的操作就是，将在全局变量区域的、int格式的随机采样点以cv::point格式复制到当前类对象中的成员变量中
-    std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));
+    std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));//数据的首地址pattern0，末尾地址pattern0 + npoints
+
+
 
     //This is for orientation
 	//下面的内容是和特征点的旋转计算有关的
     // pre-compute the end of a row in a circular patch
 	//预先计算圆形patch中行的结束位置
 	//+1中的1表示那个圆的中间行
+
+    // 以特征点keypoint像素坐标点为中心的patch圆内计算关键点keypoint的方向,直径为PATCH_SIZE=31,半径为HALF_PATCH_SIZE=15
+    // 参考大佬讲解 https://blog.csdn.net/liu502617169/article/details/89423494
+    // 参考大佬讲解 https://zhuanlan.zhihu.com/p/61738607 3. Oriented FAST,旋转角度计算
+    // 参考大佬链接：http://the7.net/news/show-44083.html#!
+    // cvRound() 即四舍五入返回跟参数最接近的整数值
+    // cvFloor() 即向下取整返回不大于参数的最大整数值
+    // cvCeil()  即向上取整返回不小于参数的最小整数值
+
+    // "sqrt(" 返回一个数字的平方根 根号2对应45°圆心角
+    // 1. 最大行数vmax初始化为R*sin45°(根号2/2)+1, +1是为了vmax和vmin边界值在遍历的过程中产生交叉,因为做了取整操作防止漏掉.
+    // 2. 最大行数vmax单纯是0-45°这个过程的最大行数,而不是这个圆的最大行数.
+    // 3. vmin为最小行数向上取整,是45-90°过程中的最小行数
     umax.resize(HALF_PATCH_SIZE + 1);
+
 	
 	//cvFloor返回不大于参数的最大整数值，cvCeil返回不小于参数的最小整数值，cvRound则是四舍五入
     int v,		//循环辅助变量
 		v0,		//辅助变量
-		vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);	//计算圆的最大行号，+1应该是把中间行也给考虑进去了
+		vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);	//计算圆的最大行号，+1应该是把中间行也给考虑进去了 //vamx=11
 				//NOTICE 注意这里的最大行号指的是计算的时候的最大行号，此行的和圆的角点在45°圆心角的一边上，之所以这样选择
 				//是因为圆周上的对称特性
 				
 	//这里的二分之根2就是对应那个45°圆心角
     
-    int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
+    int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2); //vmin=11
 	//半径的平方
     const double hp2 = HALF_PATCH_SIZE*HALF_PATCH_SIZE;
 
 	//利用圆的方程计算每行像素的u坐标边界（max）
     for (v = 0; v <= vmax; ++v)
-        umax[v] = cvRound(sqrt(hp2 - v * v));		//结果都是大于0的结果，表示x坐标在这一行的边界
+        umax[v] = cvRound(sqrt(hp2 - v * v));		//结果都是大于0的结果，表示x坐标在这一行的边界 x=根号（R^2-y^2）
+
+
+        /* V坐标   ！！！ umax[12] umax[13] umax[14] umax[15]在下面的for循环计算的 ，不是这里的cvRound计算的！！！！！
+         * |
+         * 5 @ * * * * * * * * * * * * * * + umax[15] = cvRound (sqrt(15*15-15*15)) = cvRound(0) = 0
+         * 4 * * * * * @ * * * * * * * * + * umax[14] = cvRound (sqrt(15*15-14*14)) = cvRound(5.385) = 5
+         * 3 * * * * * * * @ * * * * * + * * umax[13] = cvRound (sqrt(15*15-13*13)) = cvRound(7.483) = 7
+         * 2 * * * * * * * * * @ * * + * * * umax[12] = cvRound (sqrt(15*15-12*12)) = cvRound(9.000) = 9
+         * 1 * * * * * * * * * * @ + * * * * umax[11] = cvRound (sqrt(15*15-11*11)) = cvRound(10.198) = 10     // vmax=11 最大行数vmax单纯是0-45°这个过程的最大行数,而不是这个圆的最大行数.
+         * 0 * * * * * * * * * * + @ * * * * umax[10] = cvRound (sqrt(15*15-10*10)) = cvRound(11.180) = 11
+         * 9 * * * * * * * * * + * * @ * * * umax[9] = cvRound (sqrt(15*15-9*9)) = cvRound(12.000) = 12
+         * 8 * * * * * * * * + * * * * @ * * umax[8] = cvRound (sqrt(15*15-8*8)) = cvRound(12.689) = 13
+         * 7 * * * * * * * + * * * * * @ * * umax[7] = cvRound (sqrt(15*15-7*7)) = cvRound(13.266) = 13
+         * 6 * * * * * * + * * * * * * * @ * umax[6] = cvRound (sqrt(15*15-6*6)) = cvRound(13.748) = 14
+         * 5 * * * * * + * * * * * * * * @ * umax[5] = cvRound (sqrt(15*15-5*5)) = cvRound(14.142) = 14
+         * 4 * * * * + * * * * * * * * * @ * umax[4] = cvRound (sqrt(15*15-4*4)) = cvRound(14.457) = 14
+         * 3 * * * + * * * * * * * * * * * @ umax[3] = cvRound (sqrt(15*15-3*3)) = cvRound(14.697) = 15
+         * 2 * * + * * * * * * * * * * * * @ umax[2] = cvRound (sqrt(15*15-2*2)) = cvRound(14.866) = 15
+         * 1 * + * * * * * * * * * * * * * @ umax[1] = cvRound (sqrt(15*15-1*1)) = c vRound(14.967) = 15
+         * 0 + * * * * * * * * * * * * * * @ umax[0] = cvRound (sqrt(15*15-0*0)) = 15
+         *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5--------------------------------------------------------------------->u坐标
+         */
 
     // Make sure we are symmetric
-	//这里其实是使用了对称的方式计算上四分之一的圆周上的umax，目的也是为了保持严格的对称（如果按照常规的想法做，由于cvRound就会很容易出现不对称的情况，
+	//这里其实是使用了对称的方式计算上四分之一的圆周上的umax，目 的也是为了保持严格的对称（如果按照常规的想法做，由于cvRound就会很容易出现不对称的情况，
 	//同时这些随机采样的特征点集也不能够满足旋转之后的采样不变性了）
-	for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+	for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)   // vmin=11 vmin为最小行数向上取整,是45-90°过程中的最小行数
     {
         while (umax[v0] == umax[v0 + 1])
             ++v0;
         umax[v] = v0;
+//        cout << umax[v] <<endl;
         ++v0;
     }
 }
+    // umax 16个数值依次是：15 15 15 15 14 14 14 13 13 12 11 10 9 8 6 3
+    // 图像坐标系,四分之一圆
 
+    /* V坐标   umax[12] umax[13] umax[14] umax[15]在这个for循环计算的！！！！！
+     * |
+     * 5 * * * @ * * * * * * * * * * * + umax[15] = 3
+     * 4 * * * * * * @ * * * * * * * + * umax[14] = 6
+     * 3 * * * * * * * * @ * * * * + * * umax[13] = 8
+     * 2 * * * * * * * * * @ * * + * * * umax[12] = 9
+     * 1 * * * * * * * * * * @ + * * * * umax[11] = 10                   // vmax=11 最大行数vmax单纯是0-45°这个过程的最大行数,而不是这个圆的最大行数.
+     * 0 * * * * * * * * * * + @ * * * * umax[10] = cvRound (sqrt(15*15-10*10)) = cvRound(11.180) = 11
+     * 9 * * * * * * * * * + * * @ * * * umax[9] = cvRound (sqrt(15*15-9*9)) = cvRound(12.000) = 12
+     * 8 * * * * * * * * + * * * * @ * * umax[8] = cvRound (sqrt(15*15-8*8)) = cvRound(12.689) = 13
+     * 7 * * * * * * * + * * * * * @ * * umax[7] = cvRound (sqrt(15*15-7*7)) = cvRound(13.266) = 13
+     * 6 * * * * * * + * * * * * * * @ * umax[6] = cvRound (sqrt(15*15-6*6)) = cvRound(13.748) = 14
+     * 5 * * * * * + * * * * * * * * @ * umax[5] = cvRound (sqrt(15*15-5*5)) = cvRound(14.142) = 14
+     * 4 * * * * + * * * * * * * * * @ * umax[4] = cvRound (sqrt(15*15-4*4)) = cvRound(14.457) = 14
+     * 3 * * * + * * * * * * * * * * * @ umax[3] = cvRound (sqrt(15*15-3*3)) = cvRound(14.697) = 15
+     * 2 * * + * * * * * * * * * * * * @ umax[2] = cvRound (sqrt(15*15-2*2)) = cvRound(14.866) = 15
+     * 1 * + * * * * * * * * * * * * * @ umax[1] = cvRound (sqrt(15*15-1*1)) = cvRound(14.967) = 15
+     * 0 + * * * * * * * * * * * * * * @ umax[0] = cvRound (sqrt(15*15-0*0)) = 15
+     *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5--------------------------------------------------------------------->u坐标
+     */
+// 如果沿着对角线对折吗，你能发现 umax[15]和umax[3] umax[14]和umax[6]  umax[13]和umax[8] umax[12]和umax[9] umax[11]和umax[10] 重合，这就是对称
 
 /**
  * @brief 计算特征点的方向
@@ -582,8 +691,7 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
 static void computeOrientation(const Mat& image, vector<KeyPoint>& keypoints, const vector<int>& umax)
 {
 	// 遍历所有的特征点
-    for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
-         keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint)
+    for (vector<KeyPoint>::iterator keypoint = keypoints.begin(), keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint)
     {
 		// 调用IC_Angle 函数计算这个特征点的方向
         keypoint->angle = IC_Angle(image, 			//特征点所在的图层的图像
@@ -713,13 +821,14 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
     vpIniNodes.resize(nIni);
 
 	// Step 2 生成初始提取器节点
+	// 是初始的节点：1个或者2个！！！
     for(int i=0; i<nIni; i++)
     {      
 		//生成一个提取器节点
-        ExtractorNode ni;
+        ExtractorNode ni;//局部变量
 
 		//设置提取器节点的图像边界
-		//注意这里和提取FAST角点区域相同，都是“半径扩充图像”，特征点坐标从0 开始 
+		//注意这里和提取FAST角点区域相同，都是“半径扩充图像”，特征点坐标从0开始
         ni.UL = cv::Point2i(hX*static_cast<float>(i),0);    //UpLeft
         ni.UR = cv::Point2i(hX*static_cast<float>(i+1),0);  //UpRight
 		ni.BL = cv::Point2i(ni.UL.x,maxY-minY);		        //BottomLeft
@@ -727,13 +836,15 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 
 		//重设vkeys大小
         ni.vKeys.reserve(vToDistributeKeys.size());
+        //假如图像是正方形，这是只有1个节点nIni=1。重设vector容器vkeys大小就是之前图像提取到的特征点vToDistributeKeys的大小
+        //假如图像是长方形（宽>高），这是有2个节点nIni=2。重设vector容器vkeys大小就是之前图像提取到的特征点vToDistributeKeys的大小
 
 		//将刚才生成的提取节点添加到链表中
 		//虽然这里的ni是局部变量，但是由于这里的push_back()是拷贝参数的内容到一个新的对象中然后再添加到列表中
 		//所以当本函数退出之后这里的内存不会成为“野指针”
         lNodes.push_back(ni);
 		//存储这个初始的提取器节点句柄
-        vpIniNodes[i] = &lNodes.back();
+        vpIniNodes[i] = &lNodes.back();//初始是2个节点时：vpIniNodes[0]和vpIniNodes[1]
     }
 
     //Associate points to childs
@@ -742,8 +853,11 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
     {
 		//获取这个特征点对象
         const cv::KeyPoint &kp = vToDistributeKeys[i];
-		//按特征点的横轴位置，分配给属于那个图像区域的提取器节点（最初的提取器节点）
+		//按特征点的横轴位置kp.pt.x，分配给属于那个图像区域的提取器节点（最初的提取器节点）
+		//隐含取整操作kp.pt.x/hX相比只有俩个结果，小于1，大于1;小于1等于0都放在第一个节点里面，大于1等于1都放在第二个节点里面
         vpIniNodes[kp.pt.x/hX]->vKeys.push_back(kp);
+        //意思就是只有一个节点时，把特征点vToDistributeKeys都放进vKeys
+        //有2个节点时，把左边的特征点都放进vpIniNodes[0]->vKeys里，把右边的特征点都放进vpIniNodes[1]->vKeys里
     }
     
 	// Step 4 遍历此提取器节点列表，标记那些不可再分裂的节点，删除那些没有分配到特征点的节点
@@ -1041,6 +1155,12 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 
 
 //计算四叉树的特征点，函数名字后面的OctTree只是说明了在过滤和分配特征点时所使用的方式
+//    * 1. 加载 Euroc 数据集
+//    * 2. 加载 Euroc 数据集参数 对图像进行去畸变
+//    * 3. 创建 ORB_SLAM2::System 对象, 初始化 System Tracking Frame ORBextractor
+//    * 4. 执行 ORBextractor 构造函数 a.金字塔每层图像缩放系数 b.金字塔每层图像提取特征点数量 c.计算umax
+//    * 5. 执行 System::TrackStereo Tracking::GrabImageStereo Frame::Frame Frame::ExtractORB
+//    * 6. a.图像分块b.提取特征c.特征均匀d.旋转不变性
 void ORBextractor::ComputeKeyPointsOctTree(
 	vector<vector<KeyPoint> >& allKeypoints)	//所有的特征点，这里第一层vector存储的是某图层里面的所有特征点，
 												//第二层存储的是整个图像金字塔中的所有图层里面的所有特征点
@@ -1136,7 +1256,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
                 // cv::waitKey(0);    
                 
 
-				//调用opencv的库函数来检测FAST角点
+				//调用opencv的库函数来检测FAST角点 //TODO 不是自适应阈值
                 FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),	//待检测的图像，这里就是当前遍历到的图像块
                      vKeysCell,			//存储角点位置的容器
 					 iniThFAST,			//检测阈值
@@ -1701,7 +1821,12 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
  * 构建图像金字塔
  * @param image 输入原图像，这个输入图像所有像素都是有效的，也就是说都是可以在其上提取出FAST角点的
  */
-void ORBextractor::ComputePyramid(cv::Mat image)
+//    * 1. 加载 Euroc 数据集
+//    * 2. 加载 Euroc 数据集参数 对图像进行去畸变
+//    * 3. 创建 ORB_SLAM2::System 对象, 初始化 System Tracking Frame ORBextractor
+//    * 4. 执行 ORBextractor 构造函数 a.金字塔每层图像缩放系数 b.金字塔每层图像提取特征点数量 c.计算umax
+//    * 5. 执行 System::TrackStereo Tracking::GrabImageStereo Frame::Frame Frame::ExtractORB
+    void ORBextractor::ComputePyramid(cv::Mat image)
 {
 	//开始遍历所有的图层
     for (int level = 0; level < nlevels; ++level)
@@ -1717,6 +1842,11 @@ void ORBextractor::ComputePyramid(cv::Mat image)
         // mvImagePyramid 刚开始时是个空的vector<Mat>
 		// 把图像金字塔该图层的图像指针mvImagePyramid指向temp的中间部分（这里为浅拷贝，内存相同）
         mvImagePyramid[level] = temp(Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
+//        基本概念：
+//        Rect(int x, int y, int width, int height);
+//        参数含义：
+//        Rect（左上角x坐标，左上角y坐标，矩形的宽，矩形的高）
+
 
         // Compute the resized image
 		//计算第0层以上resize后的图像
@@ -1740,13 +1870,13 @@ void ORBextractor::ComputePyramid(cv::Mat image)
 
 			//把源图像拷贝到目的图像的中央，四面填充指定的像素。图片如果已经拷贝到中间，只填充边界
 			//这样做是为了能够正确提取边界的FAST角点
-			//EDGE_THRESHOLD指的这个边界的宽度，由于这个边界之外的像素不是原图像素而是算法生成出来的，所以不能够在EDGE_THRESHOLD之外提取特征点			
+			//EDGE_THRESHOLD指的这个边界的宽度，由于这个边界之外的像素不是原图像素而是算法生成出来的，所以不能够在EDGE_THRESHOLD之外提取特征点
             copyMakeBorder(mvImagePyramid[level], 					//源图像
 						   temp, 									//目标图像（此时其实就已经有大了一圈的尺寸了）
 						   EDGE_THRESHOLD, EDGE_THRESHOLD, 			//top & bottom 需要扩展的border大小
 						   EDGE_THRESHOLD, EDGE_THRESHOLD,			//left & right 需要扩展的border大小
                            BORDER_REFLECT_101+BORDER_ISOLATED);     //扩充方式，opencv给出的解释：
-			
+
 			/*Various border types, image boundaries are denoted with '|'
 			* BORDER_REPLICATE:     aaaaaa|abcdefgh|hhhhhhh
 			* BORDER_REFLECT:       fedcba|abcdefgh|hgfedcb
@@ -1757,16 +1887,20 @@ void ORBextractor::ComputePyramid(cv::Mat image)
 			
 			//BORDER_ISOLATED	表示对整个图像进行操作
             // https://docs.opencv.org/3.4.4/d2/de8/group__core__array.html#ga2ac1049c2c3dd25c2b41bffe17658a36
-
+             cv::imwrite("mvImagePyramid_" + to_string(level) + ".png", mvImagePyramid[level]);
+             cv::imwrite("temp_" + to_string(level) + ".png", temp);
         }
         else
         {
 			//对于第0层未缩放图像，直接将图像深拷贝到temp的中间，并且对其周围进行边界扩展。此时temp就是对原图扩展后的图像
             copyMakeBorder(image,			//这里是原图像
 						   temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
-                           BORDER_REFLECT_101);            
+                           BORDER_REFLECT_101);//BORDER_REFLECT_101 对称法，以最边缘像素为轴，对称填充。
+//             cv::imwrite("image.png", image);
+//             cv::imwrite("temp.png", temp);
+//             cv::imwrite("mvImagePyramid_" + to_string(level) + ".png", mvImagePyramid[level]);
         }
-        // //! 原代码mvImagePyramid 并未扩充，应该添加下面一行代码
+        // //! 原代码mvImagePyramid 并未扩充，应该添加下面一行代码 //TODO  没有利用图像的边界区域（< 19pixel）
         // mvImagePyramid[level] = temp;
     }
 
