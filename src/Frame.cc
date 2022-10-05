@@ -174,7 +174,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     mvbOutlier = vector<bool>(N,false);
 
     // This is done only for the first Frame (or after a change in the calibration)
-	//  Step 5 计算去畸变后图像边界，将特征点分配到网格中。这个过程一般是在第一帧或者是相机标定参数发生变化之后进行
+	//  Step 6 计算去畸变后图像边界，将特征点分配到网格中。这个过程一般是在第一帧或者是相机标定参数发生变化之后进行
     if(mbInitialComputations)
     {
 		//计算去畸变后图像的边界
@@ -201,7 +201,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     // 双目相机基线长度
     mb = mbf/fx;
 
-    // 将特征点分配到图像网格中 
+    // 将特征点分配到图像网格中
     AssignFeaturesToGrid();    
 }
 

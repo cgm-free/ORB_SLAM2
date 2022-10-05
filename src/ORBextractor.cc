@@ -93,18 +93,25 @@ const int EDGE_THRESHOLD = 19;		///<算法生成的图像边
  */
 static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
 {
+    // .at<uchar>(), .ptr<uchar>()获取像素值
+    // 一般灰度图像元素是8位的uchar型(注意不是无符号整型, 而是无符号字符型, 元素值0-255）
+    // 若图像为单通道图像,直接使用image.at<uchar>(y, x) = ...;即可对第y行，x列的对应点进行操作。
+    // 通过行指针&image.at和偏移量可以索引特征点所在行的每一个像素值
+    // 理解cv::Mat 在内存中的存储和像素的索引规则
+
 	//图像的矩，前者是按照图像块的y坐标加权，后者是按照图像块的x坐标加权
     int m_01 = 0, m_10 = 0;
 
 	//获得这个特征点所在的图像块的中心点坐标灰度值的指针center
-    const uchar* center = &image.at<uchar> (cvRound(pt.y), cvRound(pt.x));
-
+    const uchar* center = &image.at<uchar> (cvRound(pt.y), cvRound(pt.x));// uchar指针
     // Treat the center line differently, v=0
 	//这条v=0中心线的计算需要特殊对待
     //后面是以中心行为对称轴，成对遍历行数，所以PATCH_SIZE必须是奇数
-    for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u)
+    for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u){
 		//注意这里的center下标u可以是负的！中心水平线上的像素按x坐标（也就是u坐标）加权
         m_10 += u * center[u];
+    }
+
 
     // Go line by line in the circular patch  
 	//这里的step1表示这个图像一行包含的字节总数。参考[https://blog.csdn.net/qianqing13579/article/details/45318279]
@@ -467,7 +474,6 @@ static int bit_pattern_31_[256*4] =
 };
 
 //特征点提取器的构造函数
-
 ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
 						   float _scaleFactor,	//指定图像金字塔的缩放系数
 						   int _nlevels,		//指定图像金字塔的层数
@@ -681,7 +687,7 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
      *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5--------------------------------------------------------------------->u坐标
      */
 // 如果沿着对角线对折吗，你能发现 umax[15]和umax[3] umax[14]和umax[6]  umax[13]和umax[8] umax[12]和umax[9] umax[11]和umax[10] 重合，这就是对称
-
+    //!灰度质心法圆形建立完成
 /**
  * @brief 计算特征点的方向
  * @param[in] image                 特征点所在当前金字塔的图像
@@ -761,14 +767,14 @@ void ExtractorNode::DivideNode(ExtractorNode &n1,
         if(kp.pt.x<n1.UR.x)
         {
             if(kp.pt.y<n1.BR.y)
-                n1.vKeys.push_back(kp);
+                n1.vKeys.push_back(kp);//左上子节点储存对应的特征点
             else
-                n3.vKeys.push_back(kp);
+                n3.vKeys.push_back(kp);//左下子节点储存对应的特征点
         }
         else if(kp.pt.y<n1.BR.y)
-            n2.vKeys.push_back(kp);
+            n2.vKeys.push_back(kp);//右上子节点储存对应的特征点
         else
-            n4.vKeys.push_back(kp);
+            n4.vKeys.push_back(kp);//右下子节点储存对应的特征点
     }//遍历当前提取器节点的vkeys中存储的特征点
 
     //判断每个子特征点提取器节点所在的图像中特征点的数目（就是分配给子节点的特征点数目），然后做标记
@@ -842,7 +848,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 		//将刚才生成的提取节点添加到链表中
 		//虽然这里的ni是局部变量，但是由于这里的push_back()是拷贝参数的内容到一个新的对象中然后再添加到列表中
 		//所以当本函数退出之后这里的内存不会成为“野指针”
-        lNodes.push_back(ni);
+        lNodes.push_back(ni);//节点尾插进入容器 [父节点0 父节点1]
 		//存储这个初始的提取器节点句柄
         vpIniNodes[i] = &lNodes.back();//初始是2个节点时：vpIniNodes[0]和vpIniNodes[1]
     }
@@ -905,9 +911,9 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
         int prevSize = lNodes.size();
 
 		//重新定位迭代器指向列表头部
-        lit = lNodes.begin();
+        lit = lNodes.begin();//第一个节点
 
-		//需要展开的节点计数，这个一直保持累计，不清零
+		//需要分裂的节点计数，这个一直保持累计，不清零
         int nToExpand = 0;
 
 		//因为是在循环中，前面的循环体中可能污染了这个变量，所以清空
@@ -943,12 +949,12 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 if(n1.vKeys.size()>0)
                 {
 					//注意这里也是添加到列表前面的
-                    lNodes.push_front(n1);   
+                    lNodes.push_front(n1);   //头插 [子节点1 父节点0 父节点1]
 
 					//再判断其中子提取器节点中的特征点数目是否大于1
                     if(n1.vKeys.size()>1)
                     {
-						//如果有超过一个的特征点，那么待展开的节点计数加1
+						//如果有超过一个的特征点，那么待分裂的节点计数加1
                         nToExpand++;
 
 						//保存这个特征点数目和节点指针的信息
@@ -958,13 +964,13 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                         // lNodes.front().lit 和前面的迭代的lit 不同，只是名字相同而已
                         // lNodes.front().lit是node结构体里的一个指针用来记录节点的位置
                         // 迭代的lit 是while循环里作者命名的遍历的指针名称
-                        lNodes.front().lit = lNodes.begin();
+                        lNodes.front().lit = lNodes.begin();// list.front()返回第一个元素 list.begin()返回一个迭代器，指向list的第一个元素
                     }
                 }
                 //后面的操作都是相同的，这里不再赘述
                 if(n2.vKeys.size()>0)
                 {
-                    lNodes.push_front(n2);
+                    lNodes.push_front(n2);//头插 [子节点2 子节点1 父节点0 父节点1]
                     if(n2.vKeys.size()>1)
                     {
                         nToExpand++;
@@ -974,7 +980,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 }
                 if(n3.vKeys.size()>0)
                 {
-                    lNodes.push_front(n3);
+                    lNodes.push_front(n3);//头插 [子节点3 子节点2 子节点1 父节点0 父节点1]
                     if(n3.vKeys.size()>1)
                     {
                         nToExpand++;
@@ -984,7 +990,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 }
                 if(n4.vKeys.size()>0)
                 {
-                    lNodes.push_front(n4);
+                    lNodes.push_front(n4);//头插 [子节点4 子节点3 子节点2 子节点1 父节点0 父节点1]
                     if(n4.vKeys.size()>1)
                     {
                         nToExpand++;
@@ -995,6 +1001,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 
                 //当这个母节点expand之后就从列表中删除它了，能够进行分裂操作说明至少有一个子节点的区域中特征点的数量是>1的
                 // 分裂方式是后加的节点先分裂，先加的后分裂
+                //删除父节点0  [子节点4 子节点3 子节点2 子节点1 父节点1]；迭代器lit指向父节点1,再循环while,最后[子节点8 子节点7 子节点6 子节点5 子节点4 子节点3 子节点2 子节点1]
                 lit=lNodes.erase(lit);
 
 				//继续下一次循环，其实这里加不加这句话的作用都是一样的
@@ -1037,6 +1044,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 prevSize = lNodes.size();
 
 				//保留那些还可以分裂的节点的信息, 这里是深拷贝
+                //因为后面还有对于vSizeAndPointerToNode的操作，所以这里才会备份vSizeAndPointerToNode中的数据
                 vector<pair<int,ExtractorNode*> > vPrevSizeAndPointerToNode = vSizeAndPointerToNode;
 				//清空
                 vSizeAndPointerToNode.clear();
@@ -1044,7 +1052,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 // 对需要划分的节点进行排序，对pair对的第一个元素进行排序，默认是从小到大排序
 				// 优先分裂特征点多的节点，使得特征点密集的区域保留更少的特征点
                 //! 注意这里的排序规则非常重要！会导致每次最后产生的特征点都不一样。建议使用 stable_sort
-                sort(vPrevSizeAndPointerToNode.begin(),vPrevSizeAndPointerToNode.end());
+                sort(vPrevSizeAndPointerToNode.begin(),vPrevSizeAndPointerToNode.end());//升序
 
 				//遍历这个存储了pair对的vector，注意是从后往前遍历
                 for(int j=vPrevSizeAndPointerToNode.size()-1;j>=0;j--)
@@ -1052,6 +1060,8 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                     ExtractorNode n1,n2,n3,n4;
 					//对每个需要进行分裂的节点进行分裂
                     vPrevSizeAndPointerToNode[j].second->DivideNode(n1,n2,n3,n4);
+                    // vector<pair<int,ExtractorNode*> > vPrevSizeAndPointerToNode
+                    // vPrevSizeAndPointerToNode[j].second = ExtractorNode* 获取节点
 
                     // Add childs if they contain points
 					//其实这里的节点可以说是二级子节点了，执行和前面一样的操作
@@ -1210,7 +1220,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
         // std::cout << "网格的尺寸："  << "宽wCell " << wCell << " 高hCell " << hCell << std::endl;
 
 		//开始遍历图像网格，还是以行开始遍历的
-        for(int i=0; i<nRows; i++)
+        for(int i=0; i<6; i++)//10就不会出错？
         {
 			//计算当前网格初始行坐标
             const float iniY =minBorderY+i*hCell;
@@ -1243,13 +1253,61 @@ void ORBextractor::ComputeKeyPointsOctTree(
 				//如果最大坐标越界那么委屈一下
                 if(maxX>maxBorderX)
                     maxX = maxBorderX;
+////*******************************************************************************************
+//                double I_mean=0;
+//                int sum=0;
+//                double bb=0;
+//                double Th=0;
+                Mat image_ = mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX);
+//                for (int y = iniY; y <= maxY; y++) {
+//                    for (int x = iniX; x <= maxX; x++) {
+////                            Iuv = int(image.at<uchar>(y, x));
+////                            sum = sum + Iuv;//网格的像素之和
+//                        sum = sum + int(image_.at<uchar>(y, x));
+////                            cout << "坐标" << "(" << y << "," << x << ")的灰度值：" << int(image.at<uchar>(y, x)) << endl;
+//
+//                    }
+//                }
+////                   cout << sum << endl;//148154
+//                I_mean = sum / ((maxY - iniY + 1) * (maxX - iniX + 1));//248154/38/39=167.445  //网格的像素之和/像素大小长*宽
+////                   cout << I_mean << endl;//167.445
+////                   sum = 0;
+//
+//                for (int y = iniY; y <= maxY; y++) {
+//                    for (int x = iniX; x <= maxX; x++) {
+////                        Iuv=int(image_.at<uchar>(y, x));
+//                        double xx = I_mean - int(image_.at<uchar>(y, x));
+//                        bb = bb+pow(xx, 2);
+//                    }
+//                }
+//                Th =sqrt(bb)/I_mean;//平均2000多
+////                    Th =0;
+////                cout << "Th:" << Th << endl;
+//*******************************************************************************************
+                // 图像均值 和 标准方差
+                Mat  mat_mean, mat_stddev;
+                meanStdDev(image_, mat_mean, mat_stddev);
+//                double mean, std;
+                double mean = mat_mean.at<double>(0, 0);
+                double std = mat_stddev.at<double>(0, 0);
+//                cout  << "的灰度均值是：" << mean << endl;
+//                cout  << "的标准差是：" << std << endl;
+                int imgSize = image_.size.p[0]*image_.size.p[1];//image_.size.p[0]代表行的数量，1代表列的数量
+//                int imgSize = (maxY - iniY + 1) * (maxX - iniX + 1);
+                double AdaptiveTh = std*(sqrt(imgSize))/mean;
+//                cout  << "image_.size：" << imgSize << endl;
+//                cout  << "AdaptiveTh：" << AdaptiveTh << endl;
 
+
+
+
+//********************************************************************************************
                 // FAST提取兴趣点, 自适应阈值
 				//这个向量存储这个cell中的特征点
                 vector<cv::KeyPoint> vKeysCell;
                 //新增
                 // std::cout << "iniX " <<iniX << " iniY " << iniY << " maxX " << maxX<<" maxY"<< maxY << std::endl;//绘制提取特征的小图像块
-                rectangle(mvImagePyramid [level],Point(iniX,iniY),Point(maxX,maxY),Scalar(0),1);
+//                rectangle(mvImagePyramid [level],Point(iniX,iniY),Point(maxX,maxY),Scalar(0),1);
                 // cv::imwrite(to_string(level) + to_string(i) + to_string(j) +".png",mvImagePyramid[level]);
                 // cv::namedWindow("划分网格", CV_WINDOW_NORMAL);
                 // cv::imshow("划分网格",mvImagePyramid[level] );
@@ -1259,10 +1317,27 @@ void ORBextractor::ComputeKeyPointsOctTree(
 				//调用opencv的库函数来检测FAST角点 //TODO 不是自适应阈值
                 FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),	//待检测的图像，这里就是当前遍历到的图像块
                      vKeysCell,			//存储角点位置的容器
-					 iniThFAST,			//检测阈值
-					 true);				//使能非极大值抑制
+                     AdaptiveTh,			//检测阈值
+					 true);//使能非极大值抑制
+// ！             这个FAST输出的： keypoints.push_back(KeyPoint((float)j, (float)(i-1), 7.f, -1, (float)score));
+//                sum=0;
+//                I_mean=0;
+//                bb=0;
+//                Th =0;
 
-				//如果这个图像块中使用默认的FAST检测阈值没有能够检测到角点
+                /**
+                 * CV_WRAP KeyPoint();
+                @param _pt x & y coordinates of the keypoint
+                @param _size keypoint diameter
+                @param _angle keypoint orientation
+                @param _response keypoint detector response on the keypoint (that is, strength of the keypoint)
+                @param _octave pyramid octave in which the keypoint has been detected
+                @param _class_id object id
+                 */
+
+
+
+                //如果这个图像块中使用默认的FAST检测阈值没有能够检测到角点
                 if(vKeysCell.empty())
                 {
 					//那么就使用更低的阈值来进行重新检测
@@ -1301,10 +1376,10 @@ void ORBextractor::ComputeKeyPointsOctTree(
                         cv::circle(image,(*vit).pt,1,cv::Scalar(0),-1);
 
                     }//遍历图像cell中的所有的提取出来的FAST角点，并且恢复其在整个金字塔当前层图像下的坐标
-                    // for(int i =0;i<8;i++)
-                    // {
-                    // cv::imwrite( to_string(level) + "_keypoint.png", image );
-                    // }
+//                     for(int i =0;i<8;i++)
+//                     {
+//                     cv::imwrite( to_string(level) + "_keypoint.png", image );
+//                     }
 
                 }//当图像cell中检测到FAST角点的时候执行下面的语句
             }//开始遍历图像cell的列
@@ -1789,14 +1864,14 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
 		// Step 6 计算高斯模糊后图像的描述子
         computeDescriptors(workingMat, 	//高斯模糊之后的图层图像
 						   keypoints, 	//当前图层中的特征点集合
-						   desc, 		//存储计算之后的描述子
+						   desc, 		//存储计算之后的描述子 //output
 						   pattern);	//随机采样模板
 
 		// 更新偏移量的值 
         offset += nkeypointsLevel;
 
         // Scale keypoint coordinates
-		// Step 6 对非第0层图像中的特征点的坐标恢复到第0层图像（原图像）的坐标系下
+		// Step 7 对非第0层图像中的特征点的坐标恢复到第0层图像（原图像）的坐标系下
         // ? 得到所有层特征点在第0层里的坐标放到_keypoints里面
 		// 对于第0层的图像特征点，他们的坐标就不需要再进行恢复了
         if (level != 0)
@@ -1887,8 +1962,8 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
 			
 			//BORDER_ISOLATED	表示对整个图像进行操作
             // https://docs.opencv.org/3.4.4/d2/de8/group__core__array.html#ga2ac1049c2c3dd25c2b41bffe17658a36
-             cv::imwrite("mvImagePyramid_" + to_string(level) + ".png", mvImagePyramid[level]);
-             cv::imwrite("temp_" + to_string(level) + ".png", temp);
+//             cv::imwrite("mvImagePyramid_" + to_string(level) + ".png", mvImagePyramid[level]);
+//             cv::imwrite("temp_" + to_string(level) + ".png", temp);
         }
         else
         {

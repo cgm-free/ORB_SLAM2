@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     cout << "Images in the sequence: " << nImages << endl << endl;
 
     // Main loop
-    // step 4 对每一张输入的图像执行追踪
+    // step 4 对每一张输入的图像执行追踪 // 依次追踪序列中的每一张图像
     cv::Mat imLeft, imRight, imLeftRect, imRightRect;
     for(int ni=0; ni<nImages; ni++)
     {
