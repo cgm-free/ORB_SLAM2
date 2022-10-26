@@ -2134,7 +2134,7 @@ int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
 //    以上8个32bite的汉明距离之和 就是 描述子a和描述子b 共32个8bite=256位
 
 
-
+// 描述子 共32字节，每字节8位，每32位（4字节）计算一次汉明距离，共计算8次（4字节*8次=32字节）
     for(int i=0; i<8; i++, pa++, pb++)
     {
         unsigned  int v = *pa ^ *pb;        // 相等为0,不等为1

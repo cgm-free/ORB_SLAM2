@@ -1719,7 +1719,8 @@ static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints, Ma
         computeOrbDescriptor(keypoints[i], 				//要计算描述子的特征点
 							 image, 					//以及其图像
 							 &pattern[0], 				//随机点集的首地址
-							 descriptors.ptr((int)i));	//提取出来的描述子的保存位置 //返回指向指定矩阵行的指针。
+							 descriptors.ptr((int)i));	//提取出来的描述子的保存位置 //返回指向指定矩阵行的指针。//uchar型
+                             //uchar的数据类型为无符号字符类型，uchar的内存占用空间为1个字节，8比特。
 }
 
 /**
