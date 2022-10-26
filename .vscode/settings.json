@@ -123,6 +123,8 @@
 		"cinttypes": "cpp",
 		"typeindex": "cpp",
 		"variant": "cpp",
-		"bit": "cpp"
+		"bit": "cpp",
+		"generated_16.i": "cpp",
+		"generated_64.i": "cpp"
 	}
 }

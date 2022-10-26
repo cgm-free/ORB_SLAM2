@@ -168,7 +168,15 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
     const uchar* center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
 	//获得图像的每行的字节数
     const int step = (int)img.step;
-
+    // cv::Mat::step详解
+/*
+step的几个类别区分:
+    step:矩阵第一行元素的字节数
+    step[0]:矩阵第一行元素的字节数
+    step[1]:矩阵中一个元素的字节数
+    step1(0):矩阵中一行有几个通道数
+    step1(1):一个元素有几个通道数(channel())
+*/
 	//原始的BRIEF描述子没有方向不变性，通过加入关键点的方向来计算描述子，称之为Steer BRIEF，具有较好旋转不变特性
 	//具体地，在计算的时候需要将这里选取的采样模板中点的x轴方向旋转到特征点的方向。
 	//获得采样点中某个idx所对应的点的灰度值,这里旋转前坐标为(x,y), 旋转后坐标(x',y')，他们的变换关系:
@@ -178,7 +186,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
     
 	//brief描述子由32*8位组成
 	//其中每一位是来自于两个像素点灰度的直接比较，所以每比较出8bit结果，需要16个随机点，这也就是为什么pattern需要+=16的原因
-    for (int i = 0; i < 32; ++i, pattern += 16)
+    for (int i = 0; i < 32; ++i, pattern += 16) // 最后的描述子矩阵是1x32的uint8,一行共32个字节
     {
 		
         int t0, 	//参与比较的第1个特征点的灰度值
@@ -203,7 +211,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
         val |= (t0 < t1) << 7;					//描述子本字节的bit7
 
         //保存当前比较的出来的描述子的这个字节
-        desc[i] = (uchar)val;
+        desc[i] = (uchar)val;//8位=1字节，循环32次后就是一行32个字节
     }
 
     //为了避免和程序中的其他部分冲突在，在使用完成之后就取消这个宏定义
@@ -1193,12 +1201,12 @@ void ORBextractor::ComputeKeyPointsOctTree(
         //新增
 
         
-        cv::rectangle(mvImagePyramid[level],Point(minBorderX,minBorderY),Point(maxBorderX,maxBorderY),Scalar(0),1);//疑问：怎么设置矩形的颜色
-        // //cv::rectangle(mvImagePyramid[level],Point(minBorderX+3,minBorderY+3),Point(maxBorderX+3,maxBorderY+3),Scalar(0),1);
-        // cv::imwrite(to_string(level) + "_rectangle_16.png",mvImagePyramid[level] );
-        // cv::namedWindow("图像的坐标边界", CV_WINDOW_NORMAL);
-        // cv::imshow("图像的坐标边界",mvImagePyramid[level] );
-        // cv::waitKey(0);
+        // cv::rectangle(mvImagePyramid[level],Point(minBorderX,minBorderY),Point(maxBorderX,maxBorderY),Scalar(0),1);//疑问：怎么设置矩形的颜色
+        // // //cv::rectangle(mvImagePyramid[level],Point(minBorderX+3,minBorderY+3),Point(maxBorderX+3,maxBorderY+3),Scalar(0),1);
+        // // cv::imwrite(to_string(level) + "_rectangle_16.png",mvImagePyramid[level] );
+        // // cv::namedWindow("图像的坐标边界", CV_WINDOW_NORMAL);
+        // // cv::imshow("图像的坐标边界",mvImagePyramid[level] );
+        // // cv::waitKey(0);
 
 
 		//存储需要进行平均分配的特征点
@@ -1220,7 +1228,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
         // std::cout << "网格的尺寸："  << "宽wCell " << wCell << " 高hCell " << hCell << std::endl;
 
 		//开始遍历图像网格，还是以行开始遍历的
-        for(int i=0; i<6; i++)//10就不会出错？
+        for(int i=0; i<nRows; i++)
         {
 			//计算当前网格初始行坐标
             const float iniY =minBorderY+i*hCell;
@@ -1253,62 +1261,14 @@ void ORBextractor::ComputeKeyPointsOctTree(
 				//如果最大坐标越界那么委屈一下
                 if(maxX>maxBorderX)
                     maxX = maxBorderX;
-////*******************************************************************************************
-//                double I_mean=0;
-//                int sum=0;
-//                double bb=0;
-//                double Th=0;
-                Mat image_ = mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX);
-//                for (int y = iniY; y <= maxY; y++) {
-//                    for (int x = iniX; x <= maxX; x++) {
-////                            Iuv = int(image.at<uchar>(y, x));
-////                            sum = sum + Iuv;//网格的像素之和
-//                        sum = sum + int(image_.at<uchar>(y, x));
-////                            cout << "坐标" << "(" << y << "," << x << ")的灰度值：" << int(image.at<uchar>(y, x)) << endl;
-//
-//                    }
-//                }
-////                   cout << sum << endl;//148154
-//                I_mean = sum / ((maxY - iniY + 1) * (maxX - iniX + 1));//248154/38/39=167.445  //网格的像素之和/像素大小长*宽
-////                   cout << I_mean << endl;//167.445
-////                   sum = 0;
-//
-//                for (int y = iniY; y <= maxY; y++) {
-//                    for (int x = iniX; x <= maxX; x++) {
-////                        Iuv=int(image_.at<uchar>(y, x));
-//                        double xx = I_mean - int(image_.at<uchar>(y, x));
-//                        bb = bb+pow(xx, 2);
-//                    }
-//                }
-//                Th =sqrt(bb)/I_mean;//平均2000多
-////                    Th =0;
-////                cout << "Th:" << Th << endl;
-//*******************************************************************************************
-                // 图像均值 和 标准方差
-                Mat  mat_mean, mat_stddev;
-                meanStdDev(image_, mat_mean, mat_stddev);
-//                double mean, std;
-                double mean = mat_mean.at<double>(0, 0);
-                double std = mat_stddev.at<double>(0, 0);
-//                cout  << "的灰度均值是：" << mean << endl;
-//                cout  << "的标准差是：" << std << endl;
-                int imgSize = image_.size.p[0]*image_.size.p[1];//image_.size.p[0]代表行的数量，1代表列的数量
-//                int imgSize = (maxY - iniY + 1) * (maxX - iniX + 1);
-                double AdaptiveTh = std*(sqrt(imgSize))/mean;
-//                cout  << "image_.size：" << imgSize << endl;
-//                cout  << "AdaptiveTh：" << AdaptiveTh << endl;
 
-
-
-
-//********************************************************************************************
                 // FAST提取兴趣点, 自适应阈值
 				//这个向量存储这个cell中的特征点
                 vector<cv::KeyPoint> vKeysCell;
                 //新增
                 // std::cout << "iniX " <<iniX << " iniY " << iniY << " maxX " << maxX<<" maxY"<< maxY << std::endl;//绘制提取特征的小图像块
-//                rectangle(mvImagePyramid [level],Point(iniX,iniY),Point(maxX,maxY),Scalar(0),1);
-                // cv::imwrite(to_string(level) + to_string(i) + to_string(j) +".png",mvImagePyramid[level]);
+                rectangle(mvImagePyramid [level],Point(iniX,iniY),Point(maxX,maxY),Scalar(0),1);
+                cv::imwrite(to_string(level) + to_string(i) + to_string(j) +".png",mvImagePyramid[level]);
                 // cv::namedWindow("划分网格", CV_WINDOW_NORMAL);
                 // cv::imshow("划分网格",mvImagePyramid[level] );
                 // cv::waitKey(0);    
@@ -1317,13 +1277,9 @@ void ORBextractor::ComputeKeyPointsOctTree(
 				//调用opencv的库函数来检测FAST角点 //TODO 不是自适应阈值
                 FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),	//待检测的图像，这里就是当前遍历到的图像块
                      vKeysCell,			//存储角点位置的容器
-                     AdaptiveTh,			//检测阈值
+					 iniThFAST,			//检测阈值
 					 true);//使能非极大值抑制
 // ！             这个FAST输出的： keypoints.push_back(KeyPoint((float)j, (float)(i-1), 7.f, -1, (float)score));
-//                sum=0;
-//                I_mean=0;
-//                bb=0;
-//                Th =0;
 
                 /**
                  * CV_WRAP KeyPoint();
@@ -1763,7 +1719,7 @@ static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints, Ma
         computeOrbDescriptor(keypoints[i], 				//要计算描述子的特征点
 							 image, 					//以及其图像
 							 &pattern[0], 				//随机点集的首地址
-							 descriptors.ptr((int)i));	//提取出来的描述子的保存位置
+							 descriptors.ptr((int)i));	//提取出来的描述子的保存位置 //返回指向指定矩阵行的指针。
 }
 
 /**
@@ -1962,8 +1918,8 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
 			
 			//BORDER_ISOLATED	表示对整个图像进行操作
             // https://docs.opencv.org/3.4.4/d2/de8/group__core__array.html#ga2ac1049c2c3dd25c2b41bffe17658a36
-//             cv::imwrite("mvImagePyramid_" + to_string(level) + ".png", mvImagePyramid[level]);
-//             cv::imwrite("temp_" + to_string(level) + ".png", temp);
+             cv::imwrite("mvImagePyramid_" + to_string(level) + ".png", mvImagePyramid[level]);
+             cv::imwrite("temp_" + to_string(level) + ".png", temp);
         }
         else
         {
